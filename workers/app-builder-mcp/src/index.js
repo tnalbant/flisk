@@ -52,9 +52,30 @@ const STATIC = {
   "/about": ["text/html; charset=utf-8", PAGE],
 };
 
+// MCP Server Card (modelcontextprotocol/ext-server-card), served at both discovery paths so a scanner finds it.
+const MCP_URL = "https://mcp.flisk.sh/mcp";
+const CARD = JSON.stringify(
+  {
+    $schema: "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
+    name: "sh.flisk/app-builder",
+    title: "Build Me an App MCP",
+    description: "Say what app you want and get a plan in plain words and the commands to run it on your own computer. Read-only, no key.",
+    version: "1.0.0",
+    websiteUrl: "https://build.flisk.si/",
+    repository: { url: "https://github.com/flisk-sh/flisk", source: "github", subfolder: "workers/app-builder-mcp" },
+    remotes: [{ type: "streamable-http", url: MCP_URL }],
+  },
+  null,
+  2,
+);
+const CARD_PATHS = new Set(["/.well-known/mcp-server-card.json", "/.well-known/mcp/server-card.json"]);
+
 const app = {
   async fetch(request, env = {}) {
     const { pathname } = new URL(request.url);
+    if (CARD_PATHS.has(pathname) && (request.method === "GET" || request.method === "HEAD")) {
+      return new Response(request.method === "HEAD" ? null : CARD, { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=3600", "access-control-allow-origin": "*" } });
+    }
     if (pathname === "/mcp") {
       // Only POSTs do work: count them per caller, and refuse a body that is far larger than any real message.
       if (request.method === "POST") {

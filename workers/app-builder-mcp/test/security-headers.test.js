@@ -50,6 +50,26 @@ test("the body stream passes through untouched", async () => {
   assert.equal(await out.text(), "ab");
 });
 
+test("the MCP Server Card is served at both well-known paths, identical, with baseline headers", async () => {
+  const ctx = { waitUntil() {} };
+  const a = await worker.fetch(new Request("https://mcp.flisk.sh/.well-known/mcp-server-card.json"), {}, ctx);
+  const b = await worker.fetch(new Request("https://mcp.flisk.sh/.well-known/mcp/server-card.json"), {}, ctx);
+  check(a);
+  assert.equal(a.status, 200);
+  assert.match(a.headers.get("content-type"), /^application\/json/);
+  assert.equal(a.headers.get("access-control-allow-origin"), "*");
+  const text = await a.text();
+  assert.equal(text, await b.text());
+  const card = JSON.parse(text);
+  assert.equal(card.$schema, "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json");
+  assert.match(card.name, /^[^/]+\/[^/]+$/);
+  assert.equal(card.remotes[0].url, "https://mcp.flisk.sh/mcp");
+  const head = await worker.fetch(new Request("https://mcp.flisk.sh/.well-known/mcp-server-card.json", { method: "HEAD" }), {}, ctx);
+  assert.equal(head.status, 200);
+  const post = await worker.fetch(new Request("https://mcp.flisk.sh/.well-known/mcp-server-card.json", { method: "POST" }), {}, ctx);
+  assert.equal(post.status, 404);
+});
+
 test("the home page carries the Flisk analytics beacon for build.flisk.si", async () => {
   const res = await worker.fetch(new Request("https://build.flisk.si/"), {}, { waitUntil() {} });
   assert.match(await res.text(), /<script defer data-domain="build\.flisk\.si" src="https:\/\/flisk\.sh\/a\.js"><\/script>/);
